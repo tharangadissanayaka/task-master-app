@@ -1,9 +1,17 @@
 
 import React from 'react';
-import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io('http://localhost:5000');
+// API endpoint from environment variable
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// Socket.IO is not available on Lambda HTTP API; keeping socket object for compatibility
+const socket = {
+  on: () => {},
+  off: () => {},
+  emit: () => {},
+  disconnect: () => {}
+};
 
 function App() {
   React.useEffect(() => {
@@ -43,7 +51,7 @@ function App() {
     // Fetch tasks from API
     React.useEffect(() => {
       if (!token) return;
-      fetch('http://localhost:5000/api/tasks', {
+      fetch(`${API_URL}/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -54,7 +62,7 @@ function App() {
     const handleAddTask = async (e) => {
       e.preventDefault();
       if (!title) return;
-      const res = await fetch('http://localhost:5000/api/tasks', {
+      const res = await fetch(`${API_URL}/api/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +82,7 @@ function App() {
 
     // Update task status (API + socket)
     const handleUpdateStatus = async (id, status) => {
-      const res = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+      const res = await fetch(`${API_URL}/api/tasks/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +125,7 @@ function App() {
       e.preventDefault();
       setAuthError("");
       const endpoint = isLogin ? 'login' : 'register';
-      const res = await fetch(`http://localhost:5000/api/auth/${endpoint}`, {
+      const res = await fetch(`${API_URL}/api/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -142,22 +150,69 @@ function App() {
     // Modal logic
     const openTaskModal = async (task) => {
       setSelectedTask(task);
-      // Fetch comments
-      const resComments = await fetch(`http://localhost:5000/api/comments/${task._id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setComments(await resComments.json());
-      // Fetch attachments
-      const resAttachments = await fetch(`http://localhost:5000/api/attachments/${task._id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setAttachments(await resAttachments.json());
-      // Fetch activity log
-      const resActivity = await fetch(`http://localhost:5000/api/activity/${task._id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setActivity(await resActivity.json());
+      
+      // Join the task room for real-time updates
+      socket.emit('join-task', task._id);
+      
+      try {
+        // Fetch comments
+        const resComments = await fetch(`${API_URL}/api/comments/${task._id}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        setComments(await resComments.json());
+        
+        // Fetch attachments
+        const resAttachments = await fetch(`${API_URL}/api/attachments/${task._id}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        setAttachments(await resAttachments.json());
+        
+        // Fetch activity log
+        const resActivity = await fetch(`${API_URL}/api/activity/${task._id}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        setActivity(await resActivity.json());
+      } catch (error) {
+        console.error('Error loading task details:', error);
+      }
     };
+
+    const closeTaskModal = () => {
+      if (selectedTask) {
+        socket.emit('leave-task', selectedTask._id);
+      }
+      setSelectedTask(null);
+      setComments([]);
+      setAttachments([]);
+      setActivity([]);
+    };
+
+    // Listen for real-time comment updates
+    React.useEffect(() => {
+      socket.on('comment:add', (comment) => {
+        setComments(prev => [comment, ...prev]);
+        setActivity(prev => [{
+          user: comment.user,
+          action: 'added a comment',
+          timestamp: new Date()
+        }, ...prev]);
+      });
+
+      socket.on('attachment:add', (attachment) => {
+        setAttachments(prev => [attachment, ...prev]);
+      });
+
+      return () => {
+        socket.off('comment:add');
+        socket.off('attachment:add');
+      };
+    }, []);
 
     // Add comment
     const handleAddComment = async (e) => {
       e.preventDefault();
       if (!commentText || !selectedTask) return;
-      const res = await fetch(`http://localhost:5000/api/comments/${selectedTask._id}`, {
+      const res = await fetch(`${API_URL}/api/comments/${selectedTask._id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +231,7 @@ function App() {
       if (!file || !selectedTask) return;
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`http://localhost:5000/api/attachments/${selectedTask._id}`, {
+      const res = await fetch(`${API_URL}/api/attachments/${selectedTask._id}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`
@@ -283,9 +338,9 @@ function App() {
             </div>
             {/* Task Modal */}
             {selectedTask && (
-              <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setSelectedTask(null)}>
+              <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={closeTaskModal}>
                 <div style={{background:'#fff',padding:32,borderRadius:12,minWidth:400,maxWidth:600,position:'relative'}} onClick={e => e.stopPropagation()}>
-                  <button style={{position:'absolute',top:12,right:12}} onClick={() => setSelectedTask(null)}>X</button>
+                  <button style={{position:'absolute',top:12,right:12}} onClick={closeTaskModal}>X</button>
                   <h2>{selectedTask.title}</h2>
                   <p><strong>Assignee:</strong> {selectedTask.assignee || 'Unassigned'}</p>
                   <p><strong>Deadline:</strong> {selectedTask.deadline || 'None'}</p>
