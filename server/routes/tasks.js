@@ -1,9 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const Task = require('../models/Task');
+const Activity = require('../models/Activity');
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
-const JWT_SECRET = 'your_jwt_secret'; // Replace with env var in production
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 // Middleware to verify token
 function auth(req, res, next) {
@@ -26,17 +28,43 @@ router.get('/', auth, async (req, res) => {
 
 // Create task
 router.post('/', auth, async (req, res) => {
-  const { title, assignee, deadline, priority, category } = req.body;
-  const task = new Task({ title, assignee, deadline, priority, category, createdBy: req.user.userId });
-  await task.save();
-  res.json(task);
+  try {
+    const { title, assignee, deadline, priority, category } = req.body;
+    const task = new Task({ title, assignee, deadline, priority, category, createdBy: req.user.userId });
+    await task.save();
+    
+    // Log activity
+    const activity = new Activity({
+      task: task._id,
+      user: req.user.username,
+      action: 'created task'
+    });
+    await activity.save();
+    
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create task' });
+  }
 });
 
 // Update task status
 router.put('/:id', auth, async (req, res) => {
-  const { status } = req.body;
-  const task = await Task.findByIdAndUpdate(req.params.id, { status }, { new: true });
-  res.json(task);
+  try {
+    const { status } = req.body;
+    const task = await Task.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    
+    // Log activity
+    const activity = new Activity({
+      task: task._id,
+      user: req.user.username,
+      action: `changed status to ${status}`
+    });
+    await activity.save();
+    
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update task' });
+  }
 });
 
 module.exports = router;

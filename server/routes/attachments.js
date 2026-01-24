@@ -1,11 +1,13 @@
+require('dotenv').config();
 const express = require('express');
 const Attachment = require('../models/Attachment');
+const Activity = require('../models/Activity');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 
 const router = express.Router();
-const JWT_SECRET = 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -31,13 +33,30 @@ function auth(req, res, next) {
 
 // Upload attachment for a task
 router.post('/:taskId', auth, upload.single('file'), async (req, res) => {
-  const attachment = new Attachment({
-    task: req.params.taskId,
-    filename: req.file.filename,
-    url: `/uploads/${req.file.filename}`
-  });
-  await attachment.save();
-  res.json(attachment);
+  try {
+    const attachment = new Attachment({
+      task: req.params.taskId,
+      filename: req.file.filename,
+      url: `/uploads/${req.file.filename}`
+    });
+    await attachment.save();
+    
+    // Log activity
+    const activity = new Activity({
+      task: req.params.taskId,
+      user: req.user.username,
+      action: `uploaded file ${req.file.originalname}`
+    });
+    await activity.save();
+    
+    // Emit socket event
+    const io = req.app.get('io');
+    io.to(`task-${req.params.taskId}`).emit('attachment:add', attachment);
+    
+    res.json(attachment);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
 });
 
 // Get attachments for a task
