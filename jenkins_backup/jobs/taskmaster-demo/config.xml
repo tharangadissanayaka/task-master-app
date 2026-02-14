@@ -1,0 +1,42 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.SCMTrigger>
+      <spec>H/1 * * * *
+</spec>
+      <ignorePostCommitHooks>false</ignorePostCommitHooks>
+    </hudson.triggers.SCMTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command># Go to frontend folder (adjust path if needed)
+cd /var/jenkins_home/workspace/taskmaster-demo/frontend
+
+# Install dependencies (if using React, Vue, etc.)
+npm install
+
+# Build frontend (React/Vue)
+npm run build
+
+# Upload build files to S3 bucket
+aws s3 sync build/ s3://taskmaster-frontend-taskmaster-frontend-loq-2026 --delete
+
+# Optional: Invalidate CloudFront cache if using CloudFront
+# aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths &quot;/*&quot;
+</command>
+      <configuredLocalRules/>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>
