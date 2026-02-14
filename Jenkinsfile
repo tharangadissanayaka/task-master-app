@@ -16,7 +16,13 @@ pipeline {
         stage('Build Frontend Image') {
             steps {
                 echo "Building the frontend image..."
-                sh "docker build -t ${DOCKERHUB_USERNAME}/task-master-app-client:latest ./client"
+                                sh '''
+                                    echo "Building frontend assets inside node:20..."
+                                    # Build frontend assets using an ephemeral Node container
+                                    docker run --rm -v "$PWD/client":/app -w /app node:20 sh -c "npm ci && npm run build"
+                                    # Build the frontend image using the generated build folder
+                                    docker build -t ${DOCKERHUB_USERNAME}/task-master-app-client:latest ./client
+                                '''
             }
         }
 
