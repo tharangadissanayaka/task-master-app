@@ -2,8 +2,8 @@
 import React from 'react';
 import './App.css';
 
-// API endpoint from environment variable
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// API endpoint from environment variable (fallback to host backend port 5001)
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 // Socket.IO is not available on Lambda HTTP API; keeping socket object for compatibility
 const socket = {

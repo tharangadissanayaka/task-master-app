@@ -6,6 +6,7 @@ const http = require('http');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
@@ -122,6 +123,15 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Serve client build if it exists (local demo)
+const clientBuildPath = path.join(__dirname, '..', 'client', 'build');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // Only start HTTP server when not running inside AWS Lambda
 if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
