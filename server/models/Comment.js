@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
 
 const CommentSchema = new mongoose.Schema({
-  task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
-  user: { type: String },
-  text: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
+  task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true, index: true },
+  user: { type: String, required: true },
+  text: { type: String, required: true, maxlength: 500 }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Comment', CommentSchema);

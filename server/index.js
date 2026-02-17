@@ -1,5 +1,11 @@
 
 require('dotenv').config();
+const { validateEnv } = require('./config/validateEnv');
+const logger = require('./config/logger');
+
+// Validate environment variables before starting
+validateEnv();
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -10,12 +16,12 @@ const fs = require('fs');
 
 const app = express();
 
-// CORS configuration for both local dev and production (S3 frontend)
+// CORS configuration for both local dev and production
 const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://localhost:5000',
-    'http://taskmaster-frontend-taskmaster-frontend-loq-2026.s3-website-us-east-1.amazonaws.com'
+    'http://localhost:5001'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
@@ -50,18 +56,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: corsOptions.origin,
+    methods: corsOptions.methods,
+    credentials: corsOptions.credentials
   }
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/taskmaster', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected successfully'))
-.catch(err => console.error('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/taskmaster')
+  .then(() => logger.info('✅ MongoDB connected successfully'))
+  .catch(err => {
+    logger.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 
 // Basic API route
@@ -83,12 +90,12 @@ app.set('io', io);
 
 // Socket.IO setup
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  logger.info(`User connected: ${socket.id}`);
 
   // Join task room for targeted updates
   socket.on('join-task', (taskId) => {
     socket.join(`task-${taskId}`);
-    console.log(`Socket ${socket.id} joined task-${taskId}`);
+    logger.debug(`Socket ${socket.id} joined task-${taskId}`);
   });
 
   // Leave task room
@@ -118,7 +125,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    logger.info(`User disconnected: ${socket.id}`);
   });
 });
 
@@ -133,12 +140,11 @@ if (fs.existsSync(clientBuildPath)) {
   });
 }
 
-// Only start HTTP server when not running inside AWS Lambda
-if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  server.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
-    console.log(`✅ MongoDB: ${process.env.MONGO_URI || 'mongodb://localhost:27017/taskmaster'}`);
-  });
-}
+// Only start HTTP server
+server.listen(PORT, () => {
+  logger.info(`✅ Server running on port ${PORT}`);
+  logger.info(`✅ MongoDB: ${process.env.MONGO_URI || 'mongodb://localhost:27017/taskmaster'}`);
+  logger.info(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+});
 
 module.exports = app;
