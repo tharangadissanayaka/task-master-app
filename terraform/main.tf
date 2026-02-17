@@ -101,7 +101,7 @@ resource "aws_instance" "app_server" {
               # Wait for container to be ready and install Docker CLI inside it
               sleep 30
               docker exec -u root jenkins apt-get update
-              docker exec -u root jenkins apt-get install -y docker.io
+              docker exec -u root jenkins apt-get install -y docker.io docker-compose
               EOF
 
   tags = {
