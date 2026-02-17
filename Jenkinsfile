@@ -42,7 +42,7 @@ pipeline {
             steps {
                 script {
                     sh 'docker-compose -f docker-compose.prod.yml down --remove-orphans'
-                    sh 'JWT_SECRET=prod_secret_123 docker-compose -f docker-compose.prod.yml up -d'
+                    sh 'JWT_SECRET=fcb02a41fddfd7506628726e8d0b14b7d2b4c755ec486b2567ae22384441f76df docker-compose -f docker-compose.prod.yml up -d'
                     sh 'docker ps -a'
                 }
             }
