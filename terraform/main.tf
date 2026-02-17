@@ -67,6 +67,12 @@ resource "aws_instance" "app_server" {
   key_name      = aws_key_pair.generated_key.key_name
   vpc_security_group_ids = [aws_security_group.taskmaster_sg.id]
 
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp2"
+    delete_on_termination = true
+  }
+
   user_data = <<-EOF
               #!/bin/bash
               # Add Swap (prevent crash on t3.micro)
@@ -84,15 +90,18 @@ resource "aws_instance" "app_server" {
               usermod -aG docker ubuntu
 
               # Install Jenkins
-              # Run Jenkins in Docker (Much more reliable than apt-get)
-              # Verify permissions for volume
+              # Run Jenkins in Docker
               docker volume create jenkins_home
-              # Mount docker.sock so Jenkins can spawn sibling containers (Docker-in-Docker / DooD)
               chmod 666 /var/run/docker.sock
               docker run -d --name jenkins -p 8080:8080 -p 50000:50000 --restart=on-failure \
                 -v jenkins_home:/var/jenkins_home \
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 jenkins/jenkins:lts
+
+              # Wait for container to be ready and install Docker CLI inside it
+              sleep 30
+              docker exec -u root jenkins apt-get update
+              docker exec -u root jenkins apt-get install -y docker.io
               EOF
 
   tags = {
