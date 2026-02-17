@@ -41,18 +41,11 @@ pipeline {
         stage('Deploy to Production') {
             steps {
                 script {
-                    // Since Jenkins is on the same server and has docker.sock access, 
-                    // we can just run compose here.
                     sh 'docker-compose -f docker-compose.prod.yml down --remove-orphans'
-                    sh 'docker-compose -f docker-compose.prod.yml up -d'
+                    sh 'JWT_SECRET=prod_secret_123 docker-compose -f docker-compose.prod.yml up -d'
+                    sh 'docker ps -a'
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            cleanWs()
         }
     }
 }
