@@ -1,5 +1,7 @@
 provider "aws" {
-  region = "us-east-1"
+  region     = var.region
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
 }
 
 resource "aws_security_group" "taskmaster_sg" {
@@ -27,6 +29,13 @@ resource "aws_security_group" "taskmaster_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -35,19 +44,55 @@ resource "aws_security_group" "taskmaster_sg" {
   }
 }
 
+# Generate a new SSH key
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "generated_key" {
+  key_name   = var.key_name
+  public_key = tls_private_key.pk.public_key_openssh
+}
+
+resource "local_file" "ssh_key" {
+  content  = tls_private_key.pk.private_key_pem
+  filename = "${path.module}/${var.key_name}.pem"
+  file_permission = "0400"
+}
+
 resource "aws_instance" "app_server" {
   ami           = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS (us-east-1), verify latest ID
-  instance_type = "t2.micro"
-  key_name      = "your-key-pair-name" # creating this manually in AWS console is recommended
+  instance_type = "t3.micro" # t3.micro is also Free Tier eligible in most regions and newer
+  key_name      = aws_key_pair.generated_key.key_name
   vpc_security_group_ids = [aws_security_group.taskmaster_sg.id]
 
   user_data = <<-EOF
               #!/bin/bash
+              # Add Swap (prevent crash on t3.micro)
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+              # Update & Install Docker
               apt-get update
-              apt-get install -y docker.io docker-compose
+              apt-get install -y docker.io docker-compose fontconfig openjdk-17-jre
               systemctl start docker
               systemctl enable docker
               usermod -aG docker ubuntu
+
+              # Install Jenkins
+              # Run Jenkins in Docker (Much more reliable than apt-get)
+              # Verify permissions for volume
+              docker volume create jenkins_home
+              # Mount docker.sock so Jenkins can spawn sibling containers (Docker-in-Docker / DooD)
+              chmod 666 /var/run/docker.sock
+              docker run -d --name jenkins -p 8080:8080 -p 50000:50000 --restart=on-failure \
+                -v jenkins_home:/var/jenkins_home \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                jenkins/jenkins:lts
               EOF
 
   tags = {
