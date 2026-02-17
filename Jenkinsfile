@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        // ID of the credentials added to Jenkins
+
         DOCKER_CREDS_ID = "docker-hub-credentials"
         REGISTRY_URL = "docker.io" // You must update this with your actual username in the script below
-        DOCKER_USER = "your_dockerhub_username" // CHANGE THIS TO YOUR USERNAME
+        DOCKER_USER = "tharangadissanayaka"
         IMAGE_NAME = "taskmaster"
     }
 
