@@ -11,25 +11,25 @@ services:
       - mongo-data:/data/db
 
   backend:
-    # working_dir is /app by default
-    image: taskmaster-backend:latest # Jenkins will build/tag this
+    # Use environment variables so Jenkins can customize the image source
+    image: ${DOCKER_USER}/${IMAGE_NAME}-backend:latest
     container_name: taskmaster-backend
     restart: always
     ports:
       - "5001:5000"
     environment:
       - MONGO_URI=mongodb://mongo:27017/taskmaster
-      - JWT_SECRET=${JWT_SECRET} # Passed from .env or Jenkins
+      - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
     depends_on:
       - mongo
 
   frontend:
-    image: taskmaster-frontend:latest # Jenkins will build/tag this
+    image: ${DOCKER_USER}/${IMAGE_NAME}-frontend:latest
     container_name: taskmaster-frontend
     restart: always
     ports:
-      - "80:80" # Nginx serves on 80
+      - "80:80"
     depends_on:
       - backend
 

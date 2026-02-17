@@ -2,9 +2,11 @@ pipeline {
     agent any
 
     environment {
-        // AWS Credentials should be configured in Jenkins Credentials
-        // Docker Hub / ECR credentials likewise
-        REGISTRY_URL = "my-docker-registry" // Update this
+        // ID of the credentials added to Jenkins
+        DOCKER_CREDS_ID = "docker-hub-credentials"
+        REGISTRY_URL = "docker.io" // You must update this with your actual username in the script below
+        DOCKER_USER = "your_dockerhub_username" // CHANGE THIS TO YOUR USERNAME
+        IMAGE_NAME = "taskmaster"
     }
 
     stages {
@@ -17,10 +19,21 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    // Build Backend
-                    sh 'docker build -t taskmaster-backend:latest ./server'
-                    // Build Frontend (Use Prod Dockerfile)
-                    sh 'docker build -f client/Dockerfile.prod -t taskmaster-frontend:latest ./client'
+                    // Use the registry prefix so we can push them later
+                    sh "docker build -t ${DOCKER_USER}/${IMAGE_NAME}-backend:latest ./server"
+                    sh "docker build -f client/Dockerfile.prod -t ${DOCKER_USER}/${IMAGE_NAME}-frontend:latest ./client"
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS_ID}", passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER_ENV')]) {
+                        sh "docker login -u ${DOCKER_USER_ENV} -p ${DOCKER_PASS}"
+                        sh "docker push ${DOCKER_USER}/${IMAGE_NAME}-backend:latest"
+                        sh "docker push ${DOCKER_USER}/${IMAGE_NAME}-frontend:latest"
+                    }
                 }
             }
         }
@@ -28,13 +41,9 @@ pipeline {
         stage('Deploy to Production') {
             steps {
                 script {
-                    // Example deployment: valid only if Jenkins is running on the server or has SSH access
-                    // For a "fresh" setup, we assume Jenkins triggers the update via docker-compose
-                    
-                    // Stop old containers
-                    sh 'docker-compose -f docker-compose.prod.yml down'
-                    
-                    // Start new containers
+                    // Since Jenkins is on the same server and has docker.sock access, 
+                    // we can just run compose here.
+                    sh 'docker-compose -f docker-compose.prod.yml down --remove-orphans'
                     sh 'docker-compose -f docker-compose.prod.yml up -d'
                 }
             }
