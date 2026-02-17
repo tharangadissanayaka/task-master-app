@@ -18,11 +18,7 @@ const app = express();
 
 // CORS configuration for both local dev and production
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://localhost:5001'
-  ],
+  origin: true, // Allow all origins and echo them back (works with credentials: true)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

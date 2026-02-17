@@ -10,6 +10,9 @@ RUN npm ci --only=production
 
 COPY . .
 
+# Pre-create logs directory and set permissions
+RUN mkdir -p logs && chown -R node:node /app
+
 # Use non-root user for security
 USER node
 
