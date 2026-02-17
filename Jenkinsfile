@@ -2,38 +2,40 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'tharangadissanayaka'
+        // AWS Credentials should be configured in Jenkins Credentials
+        // Docker Hub / ECR credentials likewise
+        REGISTRY_URL = "my-docker-registry" // Update this
     }
 
     stages {
-        stage('Build Backend Image') {
+        stage('Checkout') {
             steps {
-                echo "Building the backend image..."
-                sh "docker build -t ${DOCKERHUB_USERNAME}/task-master-app-server:latest ./server"
+                checkout scm
             }
         }
 
-        stage('Build Frontend Image') {
+        stage('Build Docker Images') {
             steps {
-                echo "Building the frontend image..."
-                sh '''
-                    echo "Building frontend assets inside node:20..."
-                    # Build frontend assets using an ephemeral Node container
-                    # ensure executables in node_modules/.bin are executable when mounted from host
-                    docker run --rm -v "$PWD/client":/app -w /app node:20 sh -c "npm ci && chmod -R a+rX node_modules/.bin || true && npm run build"
-                    # Build the frontend image using the generated build folder
-                    docker build -t ${DOCKERHUB_USERNAME}/task-master-app-client:latest ./client
-                '''
+                script {
+                    // Build Backend
+                    sh 'docker build -t taskmaster-backend:latest ./server'
+                    // Build Frontend (Use Prod Dockerfile)
+                    sh 'docker build -f client/Dockerfile.prod -t taskmaster-frontend:latest ./client'
+                }
             }
         }
 
-        stage('Push Images to Docker Hub') {
+        stage('Deploy to Production') {
             steps {
-                echo "Logging in and pushing images..."
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
-                    sh "docker push ${DOCKERHUB_USERNAME}/task-master-app-server:latest"
-                    sh "docker push ${DOCKERHUB_USERNAME}/task-master-app-client:latest"
+                script {
+                    // Example deployment: valid only if Jenkins is running on the server or has SSH access
+                    // For a "fresh" setup, we assume Jenkins triggers the update via docker-compose
+                    
+                    // Stop old containers
+                    sh 'docker-compose -f docker-compose.prod.yml down'
+                    
+                    // Start new containers
+                    sh 'docker-compose -f docker-compose.prod.yml up -d'
                 }
             }
         }
@@ -41,8 +43,7 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline finished."
-            sh "docker logout"
+            cleanWs()
         }
     }
 }

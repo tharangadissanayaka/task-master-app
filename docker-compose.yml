@@ -16,7 +16,7 @@ services:
       - "5001:5000"
     environment:
       - MONGO_URI=mongodb://mongo:27017/taskmaster
-      - JWT_SECRET=3f8b2c1e-9a4d-4e2b-8c7a-2d1f6e5b7c8d
+      - JWT_SECRET=fcb02a41fddfd7506628726e8d0b14b7d2b4c755ec486b2567ae22384441f76df
     depends_on:
       - mongo
   frontend:
@@ -26,24 +26,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://backend:5000
-    depends_on:
-      - backend
-  jenkins:
-    image: jenkins/jenkins:lts
-    container_name: taskmaster-jenkins
-    restart: unless-stopped
-    user: root
-    ports:
-      - "8080:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - REACT_APP_API_URL=http://localhost:5001
     depends_on:
       - backend
 volumes:
   mongo-data:
-  jenkins_home:
