@@ -380,7 +380,7 @@ function App() {
           {notification}
         </div>
       )}
-      <h1>TaskMaster</h1>
+      <h1>Tharanga</h1>
       {!token ? (
         <form onSubmit={handleAuth} style={{ marginBottom: 24 }}>
           <input
