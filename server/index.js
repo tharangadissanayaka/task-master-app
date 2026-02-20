@@ -18,30 +18,11 @@ const app = express();
 
 // CORS configuration for both local dev and production
 const corsOptions = {
-  origin: true, // Allow all origins and echo them back (works with credentials: true)
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
-
-// OPTIONS handler FIRST - before all other middleware
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = corsOptions.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', allowedOrigins[0]);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '3600');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  return res.sendStatus(404);
-});
 
 // Apply CORS middleware
 app.use(cors(corsOptions));

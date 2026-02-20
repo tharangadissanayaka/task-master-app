@@ -4,7 +4,7 @@ pipeline {
     environment {
 
         DOCKER_CREDS_ID = "docker-hub-credentials"
-        REGISTRY_URL = "docker.io" // You must update this with your actual username in the script below
+        REGISTRY_URL = "docker.io" 
         DOCKER_USER = "tharangadissanayaka"
         IMAGE_NAME = "taskmaster"
     }
