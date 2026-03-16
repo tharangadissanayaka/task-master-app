@@ -3,6 +3,8 @@ import React from 'react';
 import './App.css';
 import io from 'socket.io-client';
 
+const APP_NAME = 'TASKMASTER';
+
 // API endpoint from environment variable (fallback to host backend port 5000)
 // API endpoint detection for production/development
 const API_URL = process.env.REACT_APP_API_URL ||
@@ -20,6 +22,7 @@ const socket = io(API_URL, {
 
 function App() {
   React.useEffect(() => {
+    document.title = APP_NAME;
     socket.on('connect', () => {
       console.log('Connected to server');
     });
@@ -380,7 +383,7 @@ function App() {
           {notification}
         </div>
       )}
-      <h1>TaskMaster</h1>
+      <h1>{APP_NAME}</h1>
       {!token ? (
         <form onSubmit={handleAuth} style={{ marginBottom: 24 }}>
           <input
